@@ -39,3 +39,32 @@ Treat the entry as the patient's report.
 Describe symptoms, medication use, and relief as reported. Preserve the
 sequence of events without assigning a cause, diagnosing the episode, or
 recommending medication changes.
+
+## Guided migraine diary and medication profile
+
+Use these instructions for migraine diary and medication-profile requests.
+For migraine logging, this workflow takes precedence over older diary
+instructions in this skill.
+
+- When the user asks to log a new attack, call `save_migraine_entry` without
+  a record ID. Save only what the user reported. Keep its returned ID for
+  follow-ups. Ask the user for the attack date, or confirm it if they already
+  supplied one. Wait for their response before updating that ID.
+- For follow-ups, pass the same record ID and only the new or corrected
+  fields. When the tool returns `next_question`, ask that question and
+  wait for the answer before making another update.
+- Use the basic entry flow by default. Once it is complete, you may offer
+  the longer questionnaire. When the user requests it, pass
+  `ask_optional=True` on each call while it is active. To resume without
+  editing any fields, pass the existing ID and `ask_optional=True`.
+- If the user explicitly skips an optional question, pass its returned
+  `next_field` as `skip_field`. Leave unreported details unknown. Use
+  `None reported` for a text field only when the user explicitly says
+  there was none. Let the user stop and resume later.
+- Use `get_medication_profile` to read the current self-reported list.
+  Show the proposed full replacement list and wait for confirmation
+  before calling `save_medication_profile`. Use an empty list only when
+  the user explicitly reports taking no regular or preventive medication.
+- The current profile can help prompt recall. Save it as an attack's
+  `regular_medications` only after the user confirms it applied at the
+  time of that attack. Use `get_health_record` to reopen a saved entry.

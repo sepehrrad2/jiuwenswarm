@@ -1,6 +1,8 @@
+import json
 import os
 from datetime import date
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 import chromadb
@@ -128,6 +130,18 @@ def save_migraine_entry(
     start_time: str | None = None,
     severity: int | None = None,
     medication: str | None = None,
+    regular_medications: list[str] | None = None,
+    duration: str | None = None,
+    ongoing: bool | None = None,
+    other_symptoms: str | None = None,
+    repeat_dose: str | None = None,
+    possible_triggers: str | None = None,
+    menstrual_timing: str | None = None,
+    medication_changes: str | None = None,
+    side_effects: str | None = None,
+    comments: str | None = None,
+    ask_optional: bool = False,
+    skip_field: str | None = None,
 ) -> dict:
     """Log or update a migraine or headache diary entry.
 
@@ -136,6 +150,16 @@ def save_migraine_entry(
     answer. Then use the returned record_id to update the same entry with
     the date the user supplied. If they gave a date up front, ask them to
     confirm it before updating.
+
+    Set regular_medications only after the user confirms the list applied
+    at the time of this attack. Use [] if they explicitly report none.
+
+    Set ask_optional=True when the user wants to go through the longer
+    questionnaire, including on follow-up calls. To resume it without
+    changing any details, pass the record ID and ask_optional=True.
+    If the user asks to skip an optional question, pass its field name
+    as skip_field with the record ID. Use "None reported" for a text
+    field only when the user explicitly reports none.
     """
     if record_id is None:
         attack_date = None
@@ -151,12 +175,45 @@ def save_migraine_entry(
         "start_time": start_time.strip() if start_time else None,
         "severity": severity,
         "medication": medication.strip() if medication else None,
+        "duration": duration.strip() if duration else None,
+        "ongoing": ongoing,
+        "other_symptoms": other_symptoms.strip() if other_symptoms else None,
+        "repeat_dose": repeat_dose.strip() if repeat_dose else None,
+        "possible_triggers": possible_triggers.strip() if possible_triggers else None,
+        "menstrual_timing": menstrual_timing.strip() if menstrual_timing else None,
+        "medication_changes": medication_changes.strip() if medication_changes else None,
+        "side_effects": side_effects.strip() if side_effects else None,
+        "comments": comments.strip() if comments else None,
     }
     supplied = {
         key: value for key, value in fields.items()
         if value is not None and value != ""
     }
-    if not supplied:
+    if regular_medications is not None:
+        items = [item.strip() for item in regular_medications]
+        if any(not item for item in items):
+            raise ValueError("Each regular medication must contain text.")
+        supplied["regular_medications"] = json.dumps(items, ensure_ascii=False)
+
+    optional_questions = {
+        "ongoing": "Is the headache still ongoing?",
+        "duration": "About how long did the headache last?",
+        "other_symptoms": "Did you notice any other symptoms?",
+        "medication": "Did you take anything for this headache? If so, what and when?",
+        "repeat_dose": "Did you take another dose? If so, what and when?",
+        "regular_medications": "What regular or preventive medications, if any, were you taking at the time?",
+        "possible_triggers": "Any possible triggers you want to record?",
+        "menstrual_timing": "If relevant, would you like to record menstrual timing?",
+        "medication_changes": "Any recent medication changes you want to record?",
+        "side_effects": "Any side effects you want to record?",
+        "comments": "Anything else you want to record?",
+    }
+    if skip_field is not None:
+        if record_id is None or skip_field not in optional_questions:
+            raise ValueError("Specify an existing record ID and an optional field to skip.")
+        if skip_field in supplied:
+            raise ValueError("Give an answer or skip the field in this call.")
+    if not supplied and skip_field is None and not (record_id and ask_optional):
         raise ValueError("Provide at least one reported detail.")
 
     if record_id is None:
@@ -178,6 +235,13 @@ def save_migraine_entry(
         metadata = dict(stored["metadatas"][0])
         write = collection.update
 
+    if skip_field is not None:
+        if skip_field in metadata:
+            raise ValueError("This field already has an answer.")
+        metadata[f"skipped_{skip_field}"] = True
+    for field in supplied.keys() & optional_questions.keys():
+        if metadata.get(f"skipped_{field}"):
+            metadata[f"skipped_{field}"] = False
     metadata.update(supplied)
     metadata["date"] = metadata.get("attack_date", metadata["log_date"])
     questions = {
@@ -189,14 +253,53 @@ def save_migraine_entry(
     metadata["status"] = "partial" if missing else "complete"
 
     lines = [f"Log date: {metadata['log_date']}"]
+    if metadata.get("attack_date"):
+        weekday = date.fromisoformat(metadata["attack_date"]).strftime("%A")
+        lines.append(f"Day of the week: {weekday}")
     for key, label in (
         ("attack_date", "Attack date"),
         ("start_time", "Start time"),
         ("severity", "Severity (0–10)"),
         ("medication", "Medication as reported"),
+        ("duration", "Duration as reported"),
+        ("ongoing", "Ongoing"),
+        ("other_symptoms", "Other symptoms as reported"),
+        ("repeat_dose", "Repeat dose as reported"),
+        ("possible_triggers", "Possible triggers as reported"),
+        ("menstrual_timing", "Menstrual timing as reported"),
+        ("medication_changes", "Medication changes as reported"),
+        ("side_effects", "Side effects as reported"),
+        ("comments", "Comments"),
     ):
-        lines.append(f"{label}: {metadata.get(key, 'Unknown')}")
-    write(ids=[record_id], documents=["\\n".join(lines)], metadatas=[metadata])
+        value = metadata.get(
+            key, "Skipped" if metadata.get(f"skipped_{key}") else "Unknown"
+        )
+        if isinstance(value, bool):
+            value = "Yes" if value else "No"
+        lines.append(f"{label}: {value}")
+
+    if "regular_medications" in metadata:
+        items = json.loads(metadata["regular_medications"])
+        reported = "; ".join(items) if items else "None reported"
+    else:
+        reported = "Skipped" if metadata.get("skipped_regular_medications") else "Unknown"
+    lines.append(f"Regular medications at time of attack: {reported}")
+
+    write(ids=[record_id], documents=["\n".join(lines)], metadatas=[metadata])
+
+    next_field = missing[0] if missing else None
+    next_question = questions[next_field] if next_field else None
+    if next_field is None and ask_optional:
+        next_field = next(
+            (
+                field for field in optional_questions
+                if field not in metadata
+                and not metadata.get(f"skipped_{field}")
+                and (field != "duration" or metadata.get("ongoing") is not True)
+            ),
+            None,
+        )
+        next_question = optional_questions.get(next_field)
 
     return {
         "record_id": record_id,
@@ -204,7 +307,8 @@ def save_migraine_entry(
         "attack_date": metadata.get("attack_date"),
         "log_date": metadata["log_date"],
         "missing_fields": missing,
-        "next_question": questions[missing[0]] if missing else None,
+        "next_field": next_field,
+        "next_question": next_question,
     }
 
 
@@ -224,6 +328,43 @@ def get_health_record(record_id: str) -> dict[str, str] | None:
         result["ids"], result["documents"], result["metadatas"]
     )
     return records[0] if records else None
+
+
+
+@mcp.tool()
+def get_medication_profile() -> list[str] | None:
+    """Read the user's current self-reported regular or preventive medications.
+
+    None means no profile has been saved. An empty list means the user
+    explicitly reported no regular or preventive medications.
+    """
+    profile_path = Path(collection_path_for_medication_profile())
+    if not profile_path.exists():
+        return None
+    return json.loads(profile_path.read_text(encoding="utf-8"))
+
+
+@mcp.tool()
+def save_medication_profile(medications: list[str]) -> list[str]:
+    """Replace the current list after the user confirms the full list.
+
+    Preserve medication details as reported. Use an empty list only when
+    the user explicitly reports taking no regular or preventive medication.
+    """
+    items = [item.strip() for item in medications]
+    if any(not item for item in items):
+        raise ValueError("Each medication entry must contain text.")
+
+    profile_path = collection_path_for_medication_profile()
+    with TemporaryDirectory(dir=profile_path.parent) as staging:
+        pending = Path(staging) / profile_path.name
+        pending.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
+        pending.replace(profile_path)
+    return items
+
+
+def collection_path_for_medication_profile() -> Path:
+    return database_path / "medication_profile.json"
 
 
 def main() -> None:

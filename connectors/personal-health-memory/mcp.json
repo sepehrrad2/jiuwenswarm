@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "personal-health-memory": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "-e",
+        "\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst { createHash } = require(\"node:crypto\");\nconst { execFileSync, spawn } = require(\"node:child_process\");\n\nasync function main() {\n  const arch = { arm64: \"aarch64\", x64: \"x86_64\" }[process.arch];\n  if (process.platform !== \"darwin\" || !arch) {\n    throw new Error(\"This test supports Apple Silicon and Intel macOS.\");\n  }\n\n  const version = \"0.11.15\";\n  const platform = `${arch}-apple-darwin`;\n  const asset = `uv-${platform}.tar.gz`;\n  const url = `https://github.com/astral-sh/uv/releases/download/${version}/${asset}`;\n  const root = path.join(require(\"node:os\").homedir(), \".personal-health-memory\", \"runtime\");\n  const destination = path.join(root, `${version}-${platform}`);\n  const uvx = path.join(destination, \"uvx\");\n\n  if (!fs.existsSync(uvx)) {\n    fs.mkdirSync(root, { recursive: true, mode: 0o700 });\n    const staging = fs.mkdtempSync(path.join(root, \"download-\"));\n    try {\n      const archive = path.join(staging, asset);\n      const checksum = path.join(staging, \"checksum\");\n      for (const [from, to] of [[url, archive], [`${url}.sha256`, checksum]]) {\n        execFileSync(\"/usr/bin/curl\", [\n          \"--fail\", \"--silent\", \"--show-error\", \"--location\",\n          \"--max-time\", \"60\", \"--output\", to, from,\n        ]);\n      }\n      const expected = fs.readFileSync(checksum, \"utf8\").trim().split(/\\s+/)[0];\n      const actual = createHash(\"sha256\").update(fs.readFileSync(archive)).digest(\"hex\");\n      if (!/^[a-f0-9]{64}$/i.test(expected) || actual !== expected.toLowerCase()) {\n        throw new Error(\"uv archive checksum mismatch.\");\n      }\n\n      execFileSync(\"/usr/bin/tar\", [\"-xzf\", archive, \"-C\", staging]);\n      const extracted = path.join(staging, `uv-${platform}`);\n      fs.accessSync(path.join(extracted, \"uvx\"), fs.constants.X_OK);\n      try {\n        fs.renameSync(extracted, destination);\n      } catch (error) {\n        if (![\"EEXIST\", \"ENOTEMPTY\"].includes(error.code)) throw error;\n        fs.accessSync(uvx, fs.constants.X_OK);\n      }\n      console.error(\"[health-memory-bootstrap-test] Verified uv archive:\", actual);\n    } finally {\n      fs.rmSync(staging, { recursive: true, force: true });\n    }\n  }\n\n  console.error(\"[health-memory-bootstrap-test] Launching:\", uvx);\n  const child = spawn(uvx, process.argv.slice(1), { stdio: \"inherit\" });\n  child.on(\"error\", (error) => {\n    console.error(\"[health-memory-bootstrap-test]\", error.message);\n    process.exitCode = 1;\n  });\n  child.on(\"exit\", (code) => { process.exitCode = code ?? 1; });\n  for (const signal of [\"SIGINT\", \"SIGTERM\"]) {\n    process.on(signal, () => child.kill(signal));\n  }\n}\n\nmain().catch((error) => {\n  console.error(\"[health-memory-bootstrap-test]\", error.message);\n  process.exitCode = 1;\n});\n",
+        "--",
+        "--python",
+        "3.12",
+        "--from",
+        "git+https://github.com/sepehrrad2/jiuwenswarm.git@d8151197bf36b433945a37719a09c3f8a6e055ed#subdirectory=connectors/personal-health-memory",
+        "jiuwen-personal-health-memory"
+      ],
+      "timeout": 180
+    }
+  }
+}

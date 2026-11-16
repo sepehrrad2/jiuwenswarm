@@ -1,0 +1,25 @@
+{
+  "version": "0.1.0",
+  "package_type": "mcp",
+  "id": "personal-health-memory",
+  "name": "Personal Health Memory",
+  "description": "Search local health records and retrieve a dated timeline.",
+  "display_name": {
+    "en": "Personal Health Memory",
+    "zh": "个人健康记忆"
+  },
+  "display_description": {
+    "en": "Search local health records and retrieve a dated timeline.",
+    "zh": "搜索本地健康记录并查看按日期排列的时间线。"
+  },
+  "integration": {
+    "type": "stdio-mcp",
+    "file": "mcp.json"
+  },
+  "skills": [
+    {
+      "dir": "skills/health-record-review",
+      "mode": "all"
+    }
+  ]
+}

@@ -53,10 +53,11 @@ instructions in this skill.
 - For follow-ups, pass the same record ID and only the new or corrected
   fields. When the tool returns `next_question`, ask that question and
   wait for the answer before making another update.
-- Use the basic entry flow by default. Once it is complete, you may offer
-  the longer questionnaire. When the user requests it, pass
-  `ask_optional=True` on each call while it is active. To resume without
-  editing any fields, pass the existing ID and `ask_optional=True`.
+- Use basic logging by default. For an existing entry, pass its record ID
+  and `ask_optional=True` when the user asks to start or resume optional
+  questions. Omit `ask_optional` when saving an ordinary answer so the
+  tool keeps the entry's saved setting. Pass `ask_optional=False` only
+  when the user explicitly asks to pause or stop optional questions.
 - If the user explicitly skips an optional question, pass its returned
   `next_field` as `skip_field`. Leave unreported details unknown. Use
   `None reported` for a text field only when the user explicitly says
@@ -76,7 +77,27 @@ user the optional questionnaire is off by default and show this phrase:
 “Continue the optional questions for this entry.” Give it as a tip and
 end the reply without asking another question.
 
-When the user explicitly requests the optional questionnaire, use
-`ask_optional=True`. For an existing entry, use its record ID. Ask the
-tool’s returned question, then wait for the user. When the optional
-questionnaire finishes, say so and end the reply.
+When the user explicitly asks to start or resume optional questions,
+pass `ask_optional=True` with the existing record ID. Omit `ask_optional`
+on ordinary answers. Pass `ask_optional=False` for an explicit pause.
+Ask only the tool’s returned question, then wait for the user. When the
+tool says the questionnaire is finished, say so and end the reply.
+
+## Find a saved migraine entry before updating it
+
+- Reuse the record ID when the user explicitly provides it or clearly
+  refers to the one entry already being discussed.
+- For an entry described by date, call `find_migraine_entries` before
+  saving any changes. Use `attack_date` for “started two days ago” and
+  `log_date` for “I logged it yesterday.”
+- Resolve relative dates against the user's local calendar date. If the
+  date cannot be resolved reliably, ask for the calendar date. If the
+  wording could refer to either date, ask whether they mean when the
+  headache started or when it was logged.
+- When exactly one entry matches, use its record ID for the requested
+  update or questionnaire resume.
+- When multiple entries match, show their start times and severity, with
+  record IDs if needed to tell them apart. Ask which entry the user means
+  and wait for their choice before calling `save_migraine_entry`.
+- When no entries match, report that and ask for a different date or an
+  existing record ID. An update request does not authorize a new entry.

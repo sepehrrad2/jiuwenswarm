@@ -342,7 +342,7 @@ def save_migraine_entry(
 def find_migraine_entries(
     attack_date: str | None = None,
     log_date: str | None = None,
-) -> list[dict]:
+) -> dict:
     """Find migraine entries by the date they started or were logged.
 
     Resolve relative dates using the user's local date before calling.
@@ -380,11 +380,20 @@ def find_migraine_entries(
         }
         for record_id, metadata in zip(results["ids"], results["metadatas"])
     ]
-    return sorted(matches, key=lambda entry: (
+    matches.sort(key=lambda entry: (
         entry["attack_date"] or "",
         entry["log_date"] or "",
         entry["record_id"],
     ))
+    result = {"matches": matches, "match_count": len(matches)}
+    if len(matches) > 1:
+        result["reply_instruction"] = (
+            "Show the candidates with their start time, severity, log date, "
+            "and record ID suffix. Ask the user to pick one and end this turn. "
+            "Wait for their choice before opening any candidate or calling "
+            "save_migraine_entry. Do not choose based on completeness."
+        )
+    return result
 
 
 @mcp.tool()

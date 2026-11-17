@@ -35,7 +35,6 @@ def format_records(ids, documents, metadatas):
     ]
 
 
-@mcp.tool()
 def search_health_records(question: str) -> list[dict[str, str]]:
     """Find relevant passages for a focused question about the demo patient."""
     results = collection.query(
@@ -51,7 +50,6 @@ def search_health_records(question: str) -> list[dict[str, str]]:
     )
 
 
-@mcp.tool()
 def get_health_timeline(
     start_date: str | None = None,
     end_date: str | None = None,
@@ -82,7 +80,6 @@ def get_health_timeline(
     return sorted(matching, key=lambda record: record["date"])
 
 
-@mcp.tool()
 def save_health_record(
     record_id: str,
     record_date: str,
@@ -415,7 +412,6 @@ def get_health_record(record_id: str) -> dict[str, str] | None:
 
 
 
-@mcp.tool()
 def get_medication_profile() -> list[str] | None:
     """Read the user's current self-reported regular or preventive medications.
 
@@ -428,7 +424,6 @@ def get_medication_profile() -> list[str] | None:
     return json.loads(profile_path.read_text(encoding="utf-8"))
 
 
-@mcp.tool()
 def save_medication_profile(medications: list[str]) -> list[str]:
     """Replace the current list after the user confirms the full list.
 

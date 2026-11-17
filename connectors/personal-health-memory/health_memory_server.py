@@ -411,7 +411,17 @@ def get_health_record(record_id: str) -> dict[str, str] | None:
     records = format_records(
         result["ids"], result["documents"], result["metadatas"]
     )
-    return records[0] if records else None
+    if not records:
+        return None
+
+    record = records[0]
+    if record.get("record_type") == "migraine_diary":
+        record["reply_instruction"] = (
+            "Copy the stored attack date and log date exactly. "
+            "If you show the attack weekday, copy the stored Day of the week. "
+            "Show the log date without adding a weekday."
+        )
+    return record
 
 
 

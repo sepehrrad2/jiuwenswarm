@@ -318,7 +318,18 @@ def save_migraine_entry(
         "missing_fields": missing,
         "next_field": next_field,
         "next_question": next_question,
-        **({"reply_instruction": reply_instruction} if next_question else {}),
+        "reply_instruction": (
+            reply_instruction if next_question is not None
+            else (
+                "Summarize the saved entry and end without asking a question. "
+                + (
+                    "Tell the user the optional questionnaire is finished."
+                    if ask_optional
+                    else 'Say: Optional questionnaire is off by default. To start it '
+                         'for this entry, type "Continue the optional questions for this entry" in chat.'
+                )
+            )
+        ),
     }
 
 

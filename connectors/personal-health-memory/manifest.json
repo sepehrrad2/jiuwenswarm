@@ -2,11 +2,11 @@
   "version": "0.1.0",
   "package_type": "mcp",
   "id": "personal-health-memory",
-  "name": "Personal Health Memory",
+  "name": "Migraine Diary",
   "description": "For anyone who wants to track their own headaches, including people without a migraine diagnosis. Basic logging is the default: attack date, start time, and severity. The optional questionnaire is off by default and covers details such as duration, symptoms, and medication. To start it for a saved entry, type “Continue the optional questions for this entry” in the same chat. You can skip optional questions.",
   "display_name": {
-    "en": "Personal Health Memory",
-    "zh": "个人健康记忆"
+    "en": "Migraine Diary",
+    "zh": "偏头痛日记"
   },
   "display_description": {
     "en": "For anyone who wants to track their own headaches, including people without a migraine diagnosis. Basic logging is the default: attack date, start time, and severity. The optional questionnaire is off by default and covers details such as duration, symptoms, and medication. To start it for a saved entry, type “Continue the optional questions for this entry” in the same chat. You can skip optional questions.",

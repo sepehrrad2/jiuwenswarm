@@ -1,0 +1,25 @@
+{
+  "version": "0.1.0",
+  "package_type": "mcp",
+  "id": "personal-health-memory",
+  "name": "Migraine Diary",
+  "description": "For anyone who wants to track their own headaches, including people without a migraine diagnosis. Basic logging is the default: attack date, start time, and severity. The optional questionnaire is off by default and covers details such as duration, symptoms, and medication. To start it for a saved entry, type “Continue the optional questions for this entry” in the same chat. You can skip optional questions.",
+  "display_name": {
+    "en": "Migraine Diary",
+    "zh": "偏头痛日记"
+  },
+  "display_description": {
+    "en": "For anyone who wants to track their own headaches, including people without a migraine diagnosis. Basic logging is the default: attack date, start time, and severity. The optional questionnaire is off by default and covers details such as duration, symptoms, and medication. To start it for a saved entry, type “Continue the optional questions for this entry” in the same chat. You can skip optional questions.",
+    "zh": "适合想记录自己头痛情况的人，无需确诊偏头痛。默认使用基础记录，包括发作日期、开始时间和严重程度。可选问卷默认关闭，可用于补充持续时间、其他症状、用药等信息。若要为已保存的记录开启问卷，请在同一聊天中输入“继续这条记录的可选问题”。可跳过不想回答的问题。"
+  },
+  "integration": {
+    "type": "stdio-mcp",
+    "file": "mcp.json"
+  },
+  "skills": [
+    {
+      "dir": "skills/health-record-review",
+      "mode": "all"
+    }
+  ]
+}

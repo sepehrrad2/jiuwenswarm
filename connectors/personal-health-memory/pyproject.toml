@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jiuwen-personal-health-memory"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp==1.30.0",
+    "chromadb==1.5.9",
+]
+
+[project.scripts]
+jiuwen-personal-health-memory = "health_memory_server:main"
+
+[tool.setuptools]
+py-modules = ["health_memory_server"]

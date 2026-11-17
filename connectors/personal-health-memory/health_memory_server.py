@@ -140,7 +140,7 @@ def save_migraine_entry(
     medication_changes: str | None = None,
     side_effects: str | None = None,
     comments: str | None = None,
-    ask_optional: bool = False,
+    ask_optional: bool | None = None,
     skip_field: str | None = None,
 ) -> dict:
     """Log or update a migraine or headache diary entry.
@@ -154,9 +154,9 @@ def save_migraine_entry(
     Set regular_medications only after the user confirms the list applied
     at the time of this attack. Use [] if they explicitly report none.
 
-    Set ask_optional=True when the user wants to go through the longer
-    questionnaire, including on follow-up calls. To resume it without
-    changing any details, pass the record ID and ask_optional=True.
+    Set ask_optional=True to start or resume the optional questionnaire.
+    Set ask_optional=False only when the user explicitly asks to pause it.
+    Omit ask_optional on ordinary answers to keep the entry's saved setting.
     If the user asks to skip an optional question, pass its field name
     as skip_field with the record ID. Use "None reported" for a text
     field only when the user explicitly reports none.
@@ -213,7 +213,9 @@ def save_migraine_entry(
             raise ValueError("Specify an existing record ID and an optional field to skip.")
         if skip_field in supplied:
             raise ValueError("Give an answer or skip the field in this call.")
-    if not supplied and skip_field is None and not (record_id and ask_optional):
+    if not supplied and skip_field is None and not (
+        record_id and ask_optional is not None
+    ):
         raise ValueError("Provide at least one reported detail.")
 
     if record_id is None:
@@ -242,6 +244,9 @@ def save_migraine_entry(
     for field in supplied.keys() & optional_questions.keys():
         if metadata.get(f"skipped_{field}"):
             metadata[f"skipped_{field}"] = False
+    if ask_optional is not None:
+        metadata["optional_questionnaire_enabled"] = ask_optional
+    optional_enabled = metadata.get("optional_questionnaire_enabled", False)
     metadata.update(supplied)
     metadata["date"] = metadata.get("attack_date", metadata["log_date"])
     questions = {
@@ -289,7 +294,7 @@ def save_migraine_entry(
 
     next_field = missing[0] if missing else None
     next_question = questions[next_field] if next_field else None
-    if next_field is None and ask_optional:
+    if next_field is None and optional_enabled:
         next_field = next(
             (
                 field for field in optional_questions
@@ -324,13 +329,62 @@ def save_migraine_entry(
                 "Summarize the saved entry and end without asking a question. "
                 + (
                     "Tell the user the optional questionnaire is finished."
-                    if ask_optional
+                    if optional_enabled
                     else 'Say: Optional questionnaire is off by default. To start it '
                          'for this entry, type "Continue the optional questions for this entry" in chat.'
                 )
             )
         ),
     }
+
+
+@mcp.tool()
+def find_migraine_entries(
+    attack_date: str | None = None,
+    log_date: str | None = None,
+) -> list[dict]:
+    """Find migraine entries by the date they started or were logged.
+
+    Resolve relative dates using the user's local date before calling.
+    Ask which date they mean if the wording is ambiguous. Use YYYY-MM-DD.
+    If both filters are supplied, both must match. If several entries
+    match, show their start times and ask the user to choose before editing.
+    """
+    dates = {"attack_date": attack_date, "log_date": log_date}
+    if all(value is None for value in dates.values()):
+        raise ValueError("Provide an attack date or a log date.")
+
+    filters = [
+        patient_filter,
+        {"record_type": "migraine_diary"},
+    ]
+    for field, value in dates.items():
+        if value is None:
+            continue
+        try:
+            parsed = date.fromisoformat(value)
+        except ValueError as error:
+            raise ValueError(f"{field} must use YYYY-MM-DD.") from error
+        if parsed.isoformat() != value:
+            raise ValueError(f"{field} must use YYYY-MM-DD.")
+        filters.append({field: value})
+
+    results = collection.get(where={"$and": filters}, include=["metadatas"])
+    matches = [
+        {
+            "record_id": record_id,
+            "attack_date": metadata.get("attack_date"),
+            "log_date": metadata.get("log_date"),
+            "start_time": metadata.get("start_time"),
+            "severity": metadata.get("severity"),
+        }
+        for record_id, metadata in zip(results["ids"], results["metadatas"])
+    ]
+    return sorted(matches, key=lambda entry: (
+        entry["attack_date"] or "",
+        entry["log_date"] or "",
+        entry["record_id"],
+    ))
 
 
 @mcp.tool()

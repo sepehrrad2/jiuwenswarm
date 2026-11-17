@@ -68,3 +68,15 @@ instructions in this skill.
 - The current profile can help prompt recall. Save it as an attack's
   `regular_medications` only after the user confirms it applied at the
   time of that attack. Use `get_health_record` to reopen a saved entry.
+
+## How to start optional diary questions
+
+Use basic logging by default. After completing a basic entry, tell the
+user the optional questionnaire is off by default and show this phrase:
+“Continue the optional questions for this entry.” Give it as a tip and
+end the reply without asking another question.
+
+When the user explicitly requests the optional questionnaire, use
+`ask_optional=True`. For an existing entry, use its record ID. Ask the
+tool’s returned question, then wait for the user. When the optional
+questionnaire finishes, say so and end the reply.

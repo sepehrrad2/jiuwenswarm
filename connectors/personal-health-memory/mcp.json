@@ -10,7 +10,7 @@
         "--python",
         "3.12",
         "--from",
-        "git+https://github.com/sepehrrad2/jiuwenswarm.git@0477dcf5b1787fa5099ee393b43c298502a45bed#subdirectory=connectors/personal-health-memory",
+        "git+https://github.com/sepehrrad2/jiuwenswarm.git@f9d0ac14fef483213d40f91535027d789e40a010#subdirectory=connectors/personal-health-memory",
         "jiuwen-personal-health-memory"
       ],
       "timeout": 180

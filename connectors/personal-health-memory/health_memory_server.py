@@ -301,6 +301,15 @@ def save_migraine_entry(
         )
         next_question = optional_questions.get(next_field)
 
+    reply_instruction = (
+        "Ask next_question in your reply and end this turn. "
+        "Wait for the user's answer before calling save_migraine_entry again."
+    )
+    if next_field == "attack_date":
+        reply_instruction += " Keep the log date separate from the attack date."
+    elif next_field in optional_questions:
+        reply_instruction += " Save a skip only if the user explicitly asks to skip this question."
+
     return {
         "record_id": record_id,
         "status": metadata["status"],
@@ -309,6 +318,7 @@ def save_migraine_entry(
         "missing_fields": missing,
         "next_field": next_field,
         "next_question": next_question,
+        **({"reply_instruction": reply_instruction} if next_question else {}),
     }
 
 

@@ -287,7 +287,14 @@ def save_migraine_entry(
         reported = "Skipped" if metadata.get("skipped_regular_medications") else "Unknown"
     lines.append(f"Regular medications at time of attack: {reported}")
 
-    write(ids=[record_id], documents=["\n".join(lines)], metadatas=[metadata])
+    # Diary lookups use dates and IDs. Supply a vector with the existing
+    # collection's dimension so writes can skip text embedding.
+    write(
+        ids=[record_id],
+        documents=["\n".join(lines)],
+        metadatas=[metadata],
+        embeddings=[[1.0] + [0.0] * 383],
+    )
 
     next_field = missing[0] if missing else None
     next_question = questions[next_field] if next_field else None
